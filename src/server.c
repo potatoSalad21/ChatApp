@@ -21,13 +21,14 @@ void* handleMsg(void* arg) {
     while (1) {
         char buffer[BUFFER_SIZE];
 
+        printf("receiving\n");
         // receive info and store into the buffer
         ssize_t byteRecv = recv(client_fd, buffer, BUFFER_SIZE, 0);
         if (byteRecv > 0) {
             printf("~> %s\n", buffer);
         }
         else {
-            printf("Closing connection");
+            printf("[|Closing connection\n");
             break;
         }
     }
