@@ -4,13 +4,15 @@
 */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define MAX_MSG_LENGTH = 1024;
+#define BUFFER_SIZE 1024
 
 int main(int argc, char **argv) {
 	if (argc < 2 || argc > 3) {
@@ -46,19 +48,42 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Get the user input repeatedly
-    while (1 && status == 0) {
-        char msg[1024];
-        printf("~> ");
-        fgets(msg, 1024, stdin); 
+    struct pollfd fds[2] = {
+        // user input available
+        {
+            0,   // 0 == stdin
+            POLLIN,
+            0
+        },
+        // message from the server
+        {
+            sock,
+            POLLIN,
+            0
+        }
+    };
 
-        // Send messages
-        if (send(sock, msg, sizeof(msg), 0) < 0) {
-            perror("||ERROR|| couldn't send the buffer");
-            return 1;
+    // Polling loop
+    while (1) {
+        char msg[BUFFER_SIZE] = { 0 };
+
+        poll(fds, 2, 50000);
+
+        if (fds[0].revents & POLLIN) {
+            fgets(msg, BUFFER_SIZE, stdin); 
+            // Send messages
+            if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
+                perror("||ERROR|| couldn't send the buffer");
+                return 1;
+            } 
+        } else if (fds[1].revents & POLLIN) {
+            if (recv(sock, msg, BUFFER_SIZE, 0) > 0) {
+                printf("%s\n", msg);
+            }
         }
     }
 
+    close(sock);
     printf("Connection Ended");
 
     return 0;

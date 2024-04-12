@@ -5,23 +5,25 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <pthread.h>
-#include <unistd.h>
 
 #define BUFFER_SIZE 1024
 
 
 void* handleMsg(void* arg) {
     int client_fd = *((int*) arg);
-    
+
+    // TODO implement chat history stuff
+
     while (1) {
         char buffer[BUFFER_SIZE];
 
-        printf("receiving\n");
         // receive info and store into the buffer
         ssize_t byteRecv = recv(client_fd, buffer, BUFFER_SIZE, 0);
         if (byteRecv > 0) {
@@ -49,6 +51,7 @@ int main(int argc, char **argv) {
 
     // configure the socket
     struct sockaddr_in servAddr;
+    memset(&servAddr, 0, sizeof(servAddr)); // zero out the memory
     servAddr.sin_family = AF_INET;
     servAddr.sin_port = htons(9000);
     servAddr.sin_addr.s_addr = INADDR_ANY;
@@ -85,7 +88,7 @@ int main(int argc, char **argv) {
         }
 
         printf("Accepted a connection!\n");
-
+        
         // Create a separate thread for each connection
         pthread_t threadId;
         pthread_create(&threadId, 0, handleMsg, (void*) client_fd);
