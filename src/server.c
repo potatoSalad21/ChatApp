@@ -14,12 +14,11 @@
 #include <arpa/inet.h>
 
 #define BUFFER_SIZE 1024
+#define MAX_CLIENTS 20
 
 
-void* handleMsg(void* arg) {
+void* handleClients(void* arg) {
     int client_fd = *((int*) arg);
-
-    // TODO implement chat history stuff
 
     while (1) {
         char buffer[BUFFER_SIZE];
@@ -29,12 +28,14 @@ void* handleMsg(void* arg) {
         if (byteRecv > 0) {
             printf("~> %s\n", buffer);
         }
+
+        // TODO send the received buffer to all connected clients
         else {
             printf("[|Closing connection\n");
             break;
         }
     }
-	
+
 	free(arg);
 
     return 0;
@@ -65,7 +66,7 @@ int main(int argc, char **argv) {
         perror("||ERROR|| Couldn't bind the socket");
         close(sock);
         return 1;
-    } 
+    }
 
     // Listen for the connections
     if (listen(sock, 5) < 0) {
@@ -80,18 +81,21 @@ int main(int argc, char **argv) {
         socklen_t clientAddrLen = sizeof(clientAddr);
 		int* client_fd = malloc(sizeof(int));
 
-        // Accept connections
+        // Awaiting connections
         *client_fd = accept(sock, (struct sockaddr*) &clientAddr, &clientAddrLen);
         if (*client_fd < 0) {
             perror("ERROR in accept()");
+            free(client_fd);
             continue;
         }
+        // TODO add connections to an array
+        // NOTE an array of connections may be accessed from multiple threads
 
-        printf("Accepted a connection!\n");
-        
+        printf("[+] Accepted a connection!\n");
+
         // Create a separate thread for each connection
         pthread_t threadId;
-        pthread_create(&threadId, 0, handleMsg, (void*) client_fd);
+        pthread_create(&threadId, 0, handleClients, (void*) client_fd);
         pthread_detach(threadId);
 
         sleep(1);
