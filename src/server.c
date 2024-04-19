@@ -16,28 +16,83 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 20
 
+static _Atomic unsigned int clientCount = 0;
+pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void* handleClients(void* arg) {
-    int client_fd = *((int*) arg);
+// TODO add a name field
+typedef struct {
+    struct sockaddr_in addr;
+    int sockfd;
+} client_t;
 
-    while (1) {
-        char buffer[BUFFER_SIZE];
+client_t* clientList[MAX_CLIENTS];
 
-        // receive info and store into the buffer
-        ssize_t byteRecv = recv(client_fd, buffer, BUFFER_SIZE, 0);
-        if (byteRecv > 0) {
-            printf("~> %s\n", buffer);
-        }
 
-        // TODO send the received buffer to all connected clients
-        else {
-            printf("[|Closing connection\n");
+void add_client(client_t* cli) {
+    pthread_mutex_lock(&client_mutex);
+
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!clientList[i]) {
+            clientList[i] = cli;
             break;
         }
     }
 
-	free(arg);
+    pthread_mutex_unlock(&client_mutex);
+}
 
+void remove_client(int fd) {
+    pthread_mutex_lock(&client_mutex);
+
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (clientList[i]) {
+            if (clientList[i]->sockfd == fd) {
+                clientList[i] = NULL;
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&client_mutex);
+}
+
+void send_message(char* msg) {
+    pthread_mutex_lock(&client_mutex);
+
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (clientList[i]) {
+            if (send(clientList[i]->sockfd, msg, BUFFER_SIZE, 0) < 0) {
+                printf("||ERROR|| Couldn't send messages");
+                continue;
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&client_mutex);
+}
+
+void* handleClients(void* arg) {
+    client_t* client = (client_t*) arg;
+    clientCount++;
+
+    while (1) {
+        char buffer[BUFFER_SIZE] = { 0 };
+
+        // receive info and store into the buffer
+        ssize_t byteRecv = recv(client->sockfd, buffer, BUFFER_SIZE, 0);
+        if (byteRecv > 0) {
+            printf("~> %s\n", buffer);
+            send_message(buffer);
+        }
+        else {
+            printf("[| Closing connection |]\n");
+            break;
+        }
+    }
+
+    remove_client(client->sockfd);
+    close(client->sockfd);
+	free(client);
+    clientCount--;
     return 0;
 }
 
@@ -70,7 +125,7 @@ int main(int argc, char **argv) {
 
     // Listen for the connections
     if (listen(sock, 5) < 0) {
-        perror("||ERROR|| smth went wrong in listen()");
+        perror("||ERROR|| in listen()");
         close(sock);
         return 1;
     }
@@ -79,23 +134,31 @@ int main(int argc, char **argv) {
         // Client info
         struct sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
-		int* client_fd = malloc(sizeof(int));
 
         // Awaiting connections
-        *client_fd = accept(sock, (struct sockaddr*) &clientAddr, &clientAddrLen);
-        if (*client_fd < 0) {
+        int newClient = accept(sock, (struct sockaddr*) &clientAddr, &clientAddrLen);
+        if (newClient < 0) {
             perror("ERROR in accept()");
-            free(client_fd);
+            close(newClient);
             continue;
         }
-        // TODO add connections to an array
-        // NOTE an array of connections may be accessed from multiple threads
+        if (clientCount > MAX_CLIENTS) {
+            printf("Maximum number of clients exceeded: Rejecting\n");
+            close(newClient);
+            continue;
+        }
 
-        printf("[+] Accepted a connection!\n");
+        // Client settings
+        client_t* client = malloc(sizeof(client_t));
+        client->addr = clientAddr;
+        client->sockfd = newClient;
+
+        printf("[+] Accepted a connection! [+]\n");
+        add_client(client);
 
         // Create a separate thread for each connection
         pthread_t threadId;
-        pthread_create(&threadId, 0, handleClients, (void*) client_fd);
+        pthread_create(&threadId, 0, handleClients, (void*) client);
         pthread_detach(threadId);
 
         sleep(1);
