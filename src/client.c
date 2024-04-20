@@ -1,5 +1,5 @@
 /*
-*       CLIENT App for the chat program. 
+*       CLIENT App for the chat program.
 *
 */
 
@@ -14,6 +14,7 @@
 
 #define BUFFER_SIZE 1024
 
+
 int main(int argc, char **argv) {
 	if (argc < 2 || argc > 3) {
 		perror("||ERROR|| Incorrect Amount of Arguments.");
@@ -21,7 +22,7 @@ int main(int argc, char **argv) {
 	}
 	// Get the server IP from the arguments
 	char* servIP = argv[1];
-	
+
     // Create a TCP socket
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
@@ -70,15 +71,17 @@ int main(int argc, char **argv) {
         poll(fds, 2, 50000);
 
         if (fds[0].revents & POLLIN) {
-            fgets(msg, BUFFER_SIZE, stdin); 
+            printf("\x1b[1F"); // Move to beginning of previous line
+            printf("\x1b[2K"); // Clear entire line
+            fgets(msg, BUFFER_SIZE, stdin);
             // Send messages
             if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
                 perror("||ERROR|| couldn't send the buffer");
                 return 1;
-            } 
+            }
         } else if (fds[1].revents & POLLIN) {
             if (recv(sock, msg, BUFFER_SIZE, 0) > 0) {
-                printf("%s\n", msg);
+                printf("S: %s\n", msg);
             }
         }
     }

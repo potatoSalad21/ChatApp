@@ -77,7 +77,6 @@ void* handleClients(void* arg) {
     while (1) {
         char buffer[BUFFER_SIZE] = { 0 };
 
-        // receive info and store into the buffer
         ssize_t byteRecv = recv(client->sockfd, buffer, BUFFER_SIZE, 0);
         if (byteRecv > 0) {
             printf("~> %s\n", buffer);
@@ -97,7 +96,6 @@ void* handleClients(void* arg) {
 }
 
 int main(int argc, char **argv) {
-    // create a socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("||ERROR|| Couldn't create a socket");
@@ -105,9 +103,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // configure the socket
     struct sockaddr_in servAddr;
-    memset(&servAddr, 0, sizeof(servAddr)); // zero out the memory
+    memset(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family = AF_INET;
     servAddr.sin_port = htons(9000);
     servAddr.sin_addr.s_addr = INADDR_ANY;
@@ -116,14 +113,12 @@ int main(int argc, char **argv) {
 
     setsockopt(sock, SOL_SOCKET, (SO_REUSEPORT | SO_REUSEADDR), (char*) &option, sizeof(option));
 
-    // bind the socket to a port
     if (bind(sock, (struct sockaddr*) &servAddr, sizeof(servAddr)) < 0) {
         perror("||ERROR|| Couldn't bind the socket");
         close(sock);
         return 1;
     }
 
-    // Listen for the connections
     if (listen(sock, 5) < 0) {
         perror("||ERROR|| in listen()");
         close(sock);
@@ -131,11 +126,9 @@ int main(int argc, char **argv) {
     }
 
     while (1) {
-        // Client info
         struct sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
 
-        // Awaiting connections
         int newClient = accept(sock, (struct sockaddr*) &clientAddr, &clientAddrLen);
         if (newClient < 0) {
             perror("ERROR in accept()");
@@ -148,7 +141,6 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        // Client settings
         client_t* client = malloc(sizeof(client_t));
         client->addr = clientAddr;
         client->sockfd = newClient;
@@ -156,7 +148,6 @@ int main(int argc, char **argv) {
         printf("[+] Accepted a connection! [+]\n");
         add_client(client);
 
-        // Create a separate thread for each connection
         pthread_t threadId;
         pthread_create(&threadId, 0, handleClients, (void*) client);
         pthread_detach(threadId);
