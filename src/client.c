@@ -16,25 +16,32 @@
 
 
 int main(int argc, char **argv) {
-	if (argc < 2 || argc > 3) {
-		perror("||ERROR|| Incorrect Amount of Arguments.");
-		return 1;
-	}
-	// Get the server IP from the arguments
-	char* servIP = argv[1];
+    if (argc > 2) {
+        printf("||Incorrect Amount of Arguments\n");
+        return 1;
+    }
 
-    // Create a TCP socket
+    char username[32] = "Guest";
+    if (argc == 2) {
+        if (strlen(argv[1]) > 32) {
+            printf("||Username was too long\n");
+            return 1;
+        }
+        strncpy(username, argv[1], 32);
+    }
+
+	char* servIP = "127.0.0.1";
+
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
         perror("||ERROR|| Couldn't create a socket");
         return 1;
     }
 
-    // Socket Address struct
     struct sockaddr_in servAddr;
-    memset(&servAddr, 0, sizeof(servAddr)); // zero out the memory
-    servAddr.sin_family = AF_INET;          // set the IPv4 family
-    servAddr.sin_port = htons(9000);      	// set the port number
+    memset(&servAddr, 0, sizeof(servAddr));
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_port = htons(9000);
 
     int val = inet_pton(AF_INET, servIP, &servAddr.sin_addr.s_addr);
     if (val == 0) {
@@ -42,12 +49,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Establish the connection to the server
     int status = connect(sock, (struct sockaddr*) &servAddr, sizeof(servAddr));
     if (status < 0) {
         perror("||ERROR|| Couldn't open a socket connection");
         return 1;
     }
+
+    send(sock, username, 32, 0);
 
     struct pollfd fds[2] = {
         // user input available
@@ -64,7 +72,6 @@ int main(int argc, char **argv) {
         }
     };
 
-    // Polling loop
     while (1) {
         char msg[BUFFER_SIZE] = { 0 };
 
@@ -74,7 +81,7 @@ int main(int argc, char **argv) {
             printf("\x1b[1F"); // Move to beginning of previous line
             printf("\x1b[2K"); // Clear entire line
             fgets(msg, BUFFER_SIZE, stdin);
-            // Send messages
+
             if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
                 perror("||ERROR|| couldn't send the buffer");
                 return 1;
