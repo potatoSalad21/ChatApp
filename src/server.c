@@ -19,10 +19,10 @@
 static _Atomic unsigned int clientCount = 0;
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// TODO add a name field
 typedef struct {
     struct sockaddr_in addr;
     int sockfd;
+    char name[32];
 } client_t;
 
 client_t* clientList[MAX_CLIENTS];
@@ -60,8 +60,8 @@ void send_message(char* msg) {
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clientList[i]) {
-            if (send(clientList[i]->sockfd, msg, BUFFER_SIZE, 0) < 0) {
-                printf("||ERROR|| Couldn't send messages");
+            if (send(clientList[i]->sockfd, msg, strlen(msg), 0) < 0) {
+                perror("||ERROR|| Couldn't send messages");
                 continue;
             }
         }
@@ -73,17 +73,23 @@ void send_message(char* msg) {
 void* handleClients(void* arg) {
     client_t* client = (client_t*) arg;
     clientCount++;
+    recv(client->sockfd, client->name, 32, 0);
 
     while (1) {
-        char buffer[BUFFER_SIZE] = { 0 };
+        char message[BUFFER_SIZE] = { 0 };
 
-        ssize_t byteRecv = recv(client->sockfd, buffer, BUFFER_SIZE, 0);
+        ssize_t byteRecv = recv(client->sockfd, message, BUFFER_SIZE, 0);
         if (byteRecv > 0) {
-            printf("~> %s\n", buffer);
+            char buffer[BUFFER_SIZE + 35] = { 0 };
+            strncat(buffer, client->name, BUFFER_SIZE);
+            strncat(buffer, ": ", BUFFER_SIZE);
+            strncat(buffer, message, BUFFER_SIZE);
+
+            printf("%s\n", buffer);
             send_message(buffer);
         }
         else {
-            printf("[| Closing connection |]\n");
+            printf("[-] Closing connection [-]\n");
             break;
         }
     }

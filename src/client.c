@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
         if (fds[0].revents & POLLIN) {
             printf("\x1b[1F"); // Move to beginning of previous line
             printf("\x1b[2K"); // Clear entire line
-            fgets(msg, BUFFER_SIZE, stdin);
+            fgets(msg, BUFFER_SIZE, stdin); // note: fgets appends a newline
 
             if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
                 perror("||ERROR|| couldn't send the buffer");
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
             }
         } else if (fds[1].revents & POLLIN) {
             if (recv(sock, msg, BUFFER_SIZE, 0) > 0) {
-                printf("S: %s\n", msg);
+                printf("%s", msg);
             }
         }
     }
