@@ -4,6 +4,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
@@ -55,7 +56,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // client opts
     send(sock, username, 32, 0);
+    int keyRecv = 0;
+    char key[16];
 
     struct pollfd fds[2] = {
         // user input available
@@ -82,13 +86,19 @@ int main(int argc, char **argv) {
             printf("\x1b[2K"); // Clear entire line
             fgets(msg, BUFFER_SIZE, stdin); // note: fgets appends a newline
 
+            // TODO encrypt the message before sending
             if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
                 perror("||ERROR|| couldn't send the buffer");
                 return 1;
             }
         } else if (fds[1].revents & POLLIN) {
             if (recv(sock, msg, BUFFER_SIZE, 0) > 0) {
-                printf("%s", msg);
+                if (!keyRecv) {
+                    strncpy(key, msg, 16);
+                    keyRecv = 1;
+                } else {
+                    printf("%s", msg);
+                }
             }
         }
     }

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,6 +16,7 @@
 
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 20
+#define KEY_LEN 16
 
 static _Atomic unsigned int clientCount = 0;
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -23,10 +25,25 @@ typedef struct {
     struct sockaddr_in addr;
     int sockfd;
     char name[32];
+    char* key;
 } client_t;
 
 client_t* clientList[MAX_CLIENTS];
 
+
+char* genKey() {
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    char* key;
+    srand(time(NULL));
+
+    int i;
+    for (i = 0; i < KEY_LEN; i++) {
+        key[i] = charset[rand() % 52];
+    }
+    key[i + 1] = '\0';
+
+    return key;
+}
 
 void add_client(client_t* cli) {
     pthread_mutex_lock(&client_mutex);
@@ -74,6 +91,8 @@ void* handleClients(void* arg) {
     client_t* client = (client_t*) arg;
     clientCount++;
     recv(client->sockfd, client->name, 32, 0);
+    printf("sending keyyyyyyy...\n");
+    send(client->sockfd, client->key, 16, 0); // send key
 
     while (1) {
         char message[BUFFER_SIZE] = { 0 };
@@ -150,6 +169,7 @@ int main(int argc, char **argv) {
         client_t* client = malloc(sizeof(client_t));
         client->addr = clientAddr;
         client->sockfd = newClient;
+        client->key = genKey();
 
         printf("[+] Accepted a connection! [+]\n");
         add_client(client);
