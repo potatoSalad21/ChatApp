@@ -16,6 +16,17 @@
 #define BUFFER_SIZE 1024
 
 
+char* xorEncrypt(char* msg, char* key) {
+    char* out = (char*) malloc(strlen(msg));
+
+    int i;
+    for (i = 0; i < strlen(msg); i++) {
+        out[i] = msg[i] ^ key[i % strlen(key)];
+    }
+
+    return out;
+}
+
 int main(int argc, char **argv) {
     if (argc > 2) {
         printf("||Incorrect Amount of Arguments\n");
@@ -77,27 +88,29 @@ int main(int argc, char **argv) {
     };
 
     while (1) {
-        char msg[BUFFER_SIZE] = { 0 };
+        char buffer[BUFFER_SIZE] = { 0 };
 
         poll(fds, 2, 50000);
 
         if (fds[0].revents & POLLIN) {
             printf("\x1b[1F"); // Move to beginning of previous line
             printf("\x1b[2K"); // Clear entire line
-            fgets(msg, BUFFER_SIZE, stdin); // note: fgets appends a newline
+            fgets(buffer, BUFFER_SIZE, stdin); // note: fgets appends a newline
 
-            // TODO encrypt the message before sending
+            char* msg = xorEncrypt(buffer, key);
+
             if (send(sock, msg, BUFFER_SIZE, 0) < 0) {
                 perror("||ERROR|| couldn't send the buffer");
                 return 1;
             }
+            free(msg);
         } else if (fds[1].revents & POLLIN) {
-            if (recv(sock, msg, BUFFER_SIZE, 0) > 0) {
+            if (recv(sock, buffer, BUFFER_SIZE, 0) > 0) {
                 if (!keyRecv) {
-                    strncpy(key, msg, 16);
+                    strncpy(key, buffer, 16);
                     keyRecv = 1;
                 } else {
-                    printf("%s", msg);
+                    printf("%s", buffer);
                 }
             }
         }
